@@ -1,51 +1,61 @@
-# Copyright (c) Streamlit Inc. (2018-2022) Snowflake Inc. (2022)
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import streamlit as st
-from streamlit.logger import get_logger
+import pandas as pd
+import matplotlib.pyplot as plt
 
-LOGGER = get_logger(__name__)
+# Load Data
+@st.cache
+def load_data():
+    df = pd.read_csv('FINAL_CAPSTONE_DATA.csv')
+    df['DATE'] = pd.to_datetime(df['DATE'],format='%d-%m-%Y')
+    df.sort_values('DATE', inplace=True)
+    return df
 
+df = load_data()
 
-def run():
-    st.set_page_config(
-        page_title="Hello",
-        page_icon="👋",
-    )
+# Sidebar for stock selection
+st.sidebar.header('Stock and Industry Selector')
+selected_symbol = st.sidebar.selectbox('Select a Stock Symbol:', df['Symbol'].unique())
+selected_industry = st.sidebar.selectbox('Select an Industry:', df['Industry'].unique())
 
-    st.write("# Welcome to Streamlit! 👋")
+# Filter data based on selection
+stock_data = df[df['Symbol'] == selected_symbol]
+industry_data = df[df['Industry'] == selected_industry]
 
-    st.sidebar.success("Select a demo above.")
+# Calculate 52-week high and low
+def get_high_low(data):
+    recent_data = data[data['DATE'] > pd.Timestamp.now() - pd.Timedelta(days=365)]
+    return recent_data['Close'].max(), recent_data['Close'].min()
 
-    st.markdown(
-        """
-        Streamlit is an open-source app framework built specifically for
-        Machine Learning and Data Science projects.
-        **👈 Select a demo from the sidebar** to see some examples
-        of what Streamlit can do!
-        ### Want to learn more?
-        - Check out [streamlit.io](https://streamlit.io)
-        - Jump into our [documentation](https://docs.streamlit.io)
-        - Ask a question in our [community
-          forums](https://discuss.streamlit.io)
-        ### See more complex demos
-        - Use a neural net to [analyze the Udacity Self-driving Car Image
-          Dataset](https://github.com/streamlit/demo-self-driving)
-        - Explore a [New York City rideshare dataset](https://github.com/streamlit/demo-uber-nyc-pickups)
-    """
-    )
+stock_high, stock_low = get_high_low(stock_data)
+industry_high, industry_low = get_high_low(industry_data)
 
+# Display Statistics
+st.write(f"### Selected Stock: {selected_symbol}")
+st.write(f"**52-Week High:** {stock_high}")
+st.write(f"**52-Week Low:** {stock_low}")
+st.write(f"**Current PE:** {stock_data.iloc[-1]['PE']}")
+st.write(f"**Volume:** {stock_data.iloc[-1]['Volume']}")
+st.write(f"**EPS:** {stock_data.iloc[-1]['Eps']}")
 
-if __name__ == "__main__":
-    run()
+# Plotting closing price trend
+st.write(f"### Closing Price Trend for {selected_symbol}")
+fig, ax = plt.subplots()
+ax.plot(stock_data['DATE'], stock_data['Close'])
+ax.set_title('Closing Price Over Time')
+ax.set_xlabel('Date')
+ax.set_ylabel('Closing Price')
+st.pyplot(fig)
+
+# Repeat display for the selected industry
+st.write(f"### Selected Industry: {selected_industry}")
+st.write(f"**Industry 52-Week High:** {industry_high}")
+st.write(f"**Industry 52-Week Low:** {industry_low}")
+
+# Plotting closing price trend for the industry
+st.write(f"### Closing Price Trend for {selected_industry}")
+fig, ax = plt.subplots()
+ax.plot(industry_data['DATE'], industry_data['Close'])
+ax.set_title('Industry Closing Price Over Time')
+ax.set_xlabel('Date')
+ax.set_ylabel('Closing Price')
+st.pyplot(fig)
